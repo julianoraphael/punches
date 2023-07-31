@@ -1,0 +1,18 @@
+version: "3"
+services:
+  backend:
+    build:
+      context: ./backend
+    network_mode: "host"
+    ports:
+      - "5000:5000"
+
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
