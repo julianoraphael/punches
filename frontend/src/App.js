@@ -1,5 +1,3 @@
-// src/App.js
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -31,17 +29,64 @@ function App() {
     e.preventDefault();
     try {
       const response = await axios.post('http://localhost:5000/api/punches', { timestamp });
-      setPunches([...punches, response.data]);
+      const updatedPunches = [...punches];
+      const date = new Date(response.data.timestamp).toLocaleDateString();
+      const time = new Date(response.data.timestamp).toLocaleTimeString();
+      const existingPunch = updatedPunches.find((punch) => new Date(punch.timestamp).toLocaleDateString() === date);
+
+      if (existingPunch) {
+        existingPunch.punchTimes = existingPunch.punchTimes || [];
+        existingPunch.punchTimes.push(time);
+        existingPunch.punchTimes.sort((a, b) => new Date(a) - new Date(b)); // Sort the punch times in ascending order
+      } else {
+        updatedPunches.push({
+          _id: response.data._id,
+          timestamp: response.data.timestamp,
+          punchTimes: [time],
+        });
+      }
+
+      setPunches(updatedPunches);
     } catch (error) {
       console.error('Erro ao adicionar o registro de ponto:', error);
     }
   };
 
-  // Função para obter a data e hora atuais
+  // Função para obter a data e hora atuais no formato "yyyy-mm-dd" e "hh:mm"
   const getCurrentDateTime = () => {
     const now = new Date();
-    const formattedDate = now.toLocaleString();
-    return formattedDate;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
+
+  // Função para agrupar os registros de pontos por dia e ordenar os horários em ordem crescente
+  const groupPunchesByDay = () => {
+    const punchesByDay = {};
+    punches.forEach((punch) => {
+      const date = new Date(punch.timestamp).toLocaleDateString();
+      if (!punchesByDay[date]) {
+        punchesByDay[date] = [punch];
+      } else {
+        punchesByDay[date].push(punch);
+      }
+    });
+
+    // Sort the punch times in ascending order for each day
+    Object.values(punchesByDay).forEach((punchesOfDay) => {
+      punchesOfDay.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    });
+
+    return punchesByDay;
+  };
+
+  // Função para formatar a hora no formato "hh:mm"
+  const formatTime = (timeString) => {
+    const [hours, minutes] = timeString.split(':');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
   };
 
   return (
@@ -51,13 +96,22 @@ function App() {
       <form onSubmit={handleSubmit}>
         <button type="submit">Registrar Ponto</button>
       </form>
-      <ul>
-        {punches.map((punch) => (
-          <li key={punch._id}>
-            {new Date(punch.timestamp).toLocaleString()}
-          </li>
-        ))}
-      </ul>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time(s)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(groupPunchesByDay()).map(([date, punchesOfDay]) => (
+            <tr key={date}>
+              <td>{date}</td>
+              <td>{punchesOfDay.map((punch) => formatTime(new Date(punch.timestamp).toLocaleTimeString())).join(', ')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
